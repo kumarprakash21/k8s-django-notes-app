@@ -1,6 +1,58 @@
-version : "3.3"
-services :
-  web :
-     image : trainwithshubham/my-note-app:latest
-     ports :
-         - "8000:8000"
+services:
+  nginx:
+    build: 
+      context: ./nginx
+    container_name: nginx_cont
+    ports:
+      - "80:80"
+    networks:
+      - notes-app
+    restart: always
+    depends_on:
+      - django_app
+
+  db:
+    image: mariadb:10.6.16
+    container_name: db_cont
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: test_db
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - notes-app
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  django_app:
+    build:
+      context: .
+    container_name: django_cont
+    command: sh -c "until nc -z db 3306; do sleep 2; done && python manage.py migrate --noinput && gunicorn notesapp.wsgi --bind 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    networks:
+      - notes-app
+    restart: always
+    depends_on:
+      - db
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/admin || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  mysql-data:
+
+networks:
+  notes-app:
