@@ -1,28 +1,37 @@
 pipeline {
-    agent any
-    stages{
-        stage("Clone Code"){
-            steps{
-                git url: "https://github.com/LondheShubham153/django-notes-app.git", branch: "main"
+    agent {label "vinod"}
+
+    stages {
+        stage('Code') {
+            steps {
+                echo 'This is closing the code'
+                git url: "https://github.com/kumarprakash21/docker-django-aap.git", branch:"main"
+                echo " Code is cloned"
             }
         }
-        stage("Build and Test"){
+        stage("Code Build & Test"){
             steps{
-                sh "docker build . -t note-app-test-new"
+                echo "Code Build Stage"
+                sh "docker build -t node-app ."
             }
         }
-        stage("Push to Docker Hub"){
+        stage("Push To DockerHub"){
             steps{
-                withCredentials([usernamePassword(credentialsId:"dockerHub",passwordVariable:"dockerHubPass",usernameVariable:"dockerHubUser")]){
-                sh "docker tag note-app-test-new ${env.dockerHubUser}/note-app-test-new:latest"
-                sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPass}"
-                sh "docker push ${env.dockerHubUser}/note-app-test-new:latest"
+                withCredentials([usernamePassword(
+                    credentialsId:"dockerhubCred",
+                    usernameVariable:"dockerHubUser", 
+                    passwordVariable:"dockerHubPass")]){
+                sh 'echo $dockerHubPass | docker login -u $dockerHubUser --password-stdin'
+                sh "docker image tag node-app:latest ${env.dockerHubUser}/node-app:latest"
+                sh "docker push ${env.dockerHubUser}/node-app:latest"
                 }
             }
         }
-        stage("Deploy"){
-            steps{
-                sh "docker-compose down && docker-compose up -d"
+
+        stage('Deploy') {
+            steps {
+                echo 'This is Deploying the project'
+                sh "docker compose down && docker compose up -d --build"
             }
         }
     }
